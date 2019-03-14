@@ -134,6 +134,7 @@ public class ControlAppClient : MessageEmitter
         if( client==null || !client.Connected || !client.Client.Connected ){
           AwaitServerDiscovery(ref address);
           Connect(ref client,ref stream, ref address);
+          continue;
         }
       
         try{
