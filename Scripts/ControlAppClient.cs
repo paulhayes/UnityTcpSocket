@@ -24,12 +24,14 @@ public class ControlAppClient : MessageEmitter
 
   Queue<Message> sendMessageQueue = new Queue<Message>();
   object sendQueueLock = new object();
+
+  object addressFoundLock = new object();
   
   Thread clientThread;
 
   EventWaitHandle waitForServerAddress = new EventWaitHandle(false,EventResetMode.AutoReset);
 
-  IPEndPoint serverAddress;
+  volatile IPEndPoint serverAddress;
 
   byte[] tmpReadBytes = new byte[4096];
 
@@ -56,13 +58,21 @@ public class ControlAppClient : MessageEmitter
 
   void StartProbe()
   {
-    if(probe!=null){
-      probe.BeaconsUpdated -= OnBeacons;
-    }
     if(discoveryLogs)
       discoveryLogs.Log(HierarchicalLogger.Info, "Starting Probe");
 
+    if(probe!=null){
+      try{
+        probe.BeaconsUpdated -= OnBeacons;
+        probe.Stop();
+      }
+      finally {
+        probe.Dispose();        
+      }
+    }
+
     probe = new Probe("control-app");
+    
     probe.Start();
     probe.BeaconsUpdated += OnBeacons;
   }
@@ -87,9 +97,14 @@ public class ControlAppClient : MessageEmitter
   {
     if(probe!=null){
       probe.BeaconsUpdated -= OnBeacons;
-      probe.Stop();
+      probe.Dispose();
     }
-    running = false;    
+    running = false; 
+    
+    if(clientThread!=null){
+      waitForServerAddress.Set();   
+      clientThread.Join(); 
+    }
   }
 
   public void Send(Message message){
@@ -109,6 +124,7 @@ public class ControlAppClient : MessageEmitter
       Debug.Log("Found beacon");
       Debug.Log(beacon.Address);
       address = beacon.Address;
+      break;
     }
     
     if(address==null)
@@ -116,7 +132,7 @@ public class ControlAppClient : MessageEmitter
 
     //probe.BeaconsUpdated -= OnBeacons;
         
-    lock(sendQueueLock){
+    lock(addressFoundLock){
       serverAddress = address; 
     }
     waitForServerAddress.Set();
@@ -132,7 +148,7 @@ public class ControlAppClient : MessageEmitter
       while(running){
         int wait = 1000 / sendRate;
         if( client==null || !client.Connected || !client.Client.Connected ){
-          AwaitServerDiscovery(ref address);
+          AwaitServerDiscovery();
           Connect(ref client,ref stream, ref address);
           continue;
         }
@@ -171,7 +187,8 @@ public class ControlAppClient : MessageEmitter
       }
       
       //Log("client sleeping");
-      Thread.Sleep(5);
+      if(running)
+        Thread.Sleep(wait);
     }
     }
     catch(ThreadAbortException e){
@@ -194,25 +211,36 @@ public class ControlAppClient : MessageEmitter
           client.Dispose();
     }
     discoveryLogs.Log(HierarchicalLogger.Info,"Control App Client stopped");
+    clientThread = null;
   }
 
-  void AwaitServerDiscovery(ref IPEndPoint address)
+  void AwaitServerDiscovery()
   { 
     // we already have address, so we can exit early   
-    if(address!=null){
-      return;      
+    lock(sendQueueLock){
+      if(serverAddress!=null){
+        return;      
+      }
     }
 
+    try{ 
+        discoveryLogs.Log(HierarchicalLogger.Info,"restarting probe");
+        StartProbe();
+    }
+    catch(ThreadStateException e2){
+      discoveryLogs.Log(HierarchicalLogger.Error,e2.ToString());
+      
+      //probe thread was already running?
+    }
+    
     if(discoveryLogs)
       discoveryLogs.LogFormat(HierarchicalLogger.Info,"Waiting for server discovery");
     waitForServerAddress.WaitOne();
     probe.Stop();
     if(discoveryLogs)
-      discoveryLogs.LogFormat(HierarchicalLogger.Info,"Conntect to {0}",serverAddress);
+      discoveryLogs.LogFormat(HierarchicalLogger.Info,"Connect to {0}",serverAddress);
 
-    lock(sendQueueLock){
-      address = serverAddress;
-    }
+    
       
   }
 
@@ -223,11 +251,19 @@ public class ControlAppClient : MessageEmitter
       client.Dispose();
     }
 
+    
+
     client = new TcpClient();
     try {
       if(discoveryLogs)
         discoveryLogs.LogFormat(HierarchicalLogger.Info,"Attempting connect");
       client.NoDelay = true;
+      lock(addressFoundLock){
+        address = serverAddress;
+      }
+      if(address==null){
+        return;
+      }
       client.Connect(address);
       stream = client.GetStream();      
     }
@@ -244,20 +280,11 @@ public class ControlAppClient : MessageEmitter
         client.Dispose();
         client = null;
       }
-      lock(sendQueueLock){
-        serverAddress = null;
+      lock(addressFoundLock){
+        serverAddress = null;        
       }
-      
-      try{ 
-        discoveryLogs.Log(HierarchicalLogger.Info,"restarting probe");
-        StartProbe();
-      }
-      catch(ThreadStateException e2){
-        if(discoveryLogs){
-          discoveryLogs.Log(HierarchicalLogger.Error,e2.ToString());
-        }
-        //probe thread was already running?
-      }
+      address = null;
+            
       Thread.Sleep(500);
     }                
   }
