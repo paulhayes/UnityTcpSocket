@@ -41,9 +41,21 @@ public class ControlAppClient : MessageEmitter
   public HierarchicalLogger sendLogs;
   public HierarchicalLogger receiveLogs;
 
+  public enum ClientState {
+    Disconnected,
+    Discovering,
+    Connecting,
+    Connected
+  }
+
+  public ClientState State {
+    protected set;
+    get;
+  }
 
   public void Init()
   {
+    State = ClientState.Disconnected;
     running = true;
     
     // Event is raised on separate thread so need synchronization
@@ -58,6 +70,7 @@ public class ControlAppClient : MessageEmitter
 
   void StartProbe()
   {
+    State = ClientState.Discovering;
     if(discoveryLogs)
       discoveryLogs.Log(HierarchicalLogger.Info, "Starting Probe");
 
@@ -152,6 +165,8 @@ public class ControlAppClient : MessageEmitter
           Connect(ref client,ref stream, ref address);
           continue;
         }
+
+        
       
         try{
           while( sendMessageQueue.Count > 0 && stream.CanWrite ){
@@ -264,10 +279,14 @@ public class ControlAppClient : MessageEmitter
       if(address==null){
         return;
       }
+      State = ClientState.Connecting;
       client.Connect(address);
-      stream = client.GetStream();      
+      stream = client.GetStream();  
+      State = ClientState.Connected;    
     }
     catch(SocketException e){
+      State = ClientState.Disconnected;
+
       //connect failed
       if(discoveryLogs){
         discoveryLogs.Log(HierarchicalLogger.Error,e.ToString());
