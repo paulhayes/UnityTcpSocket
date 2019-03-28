@@ -112,7 +112,7 @@ public class ControlAppServer : MessageEmitter
         int wait = 1000 / sendRate;
         //Log("server loop");
         
-        if(server.Pending()){
+        if(clients.Count<MaxClients && server.Pending()){
           var client = server.AcceptTcpClient();        
           clients.Add( client );  
           lastClientMessageTime.Add( System.DateTime.UtcNow );

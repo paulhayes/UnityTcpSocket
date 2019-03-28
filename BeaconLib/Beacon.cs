@@ -68,7 +68,13 @@ namespace BeaconLib
                 var responseData = Encode(BeaconType)
                     .Concat(BitConverter.GetBytes((ushort)IPAddress.HostToNetworkOrder((short)AdvertisedPort)))
                     .Concat(Encode(BeaconData)).ToArray();
-                udp.Send(responseData, responseData.Length, remote);
+                try {
+                  udp.Send(responseData, responseData.Length, remote);
+                }
+                catch(SocketException e){
+                  UnityEngine.Debug.LogError(e);
+                  UnityEngine.Debug.LogError(remote.Address);
+                }
             }
 
             if (!Stopped) udp.BeginReceive(ProbeReceived, null);
