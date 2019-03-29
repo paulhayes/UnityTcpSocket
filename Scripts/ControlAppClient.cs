@@ -74,6 +74,10 @@ public class ControlAppClient : MessageEmitter
     if(discoveryLogs)
       discoveryLogs.Log(HierarchicalLogger.Info, "Starting Probe");
 
+    if(probe==null){
+      probe = new Probe("control-app");
+    }
+    /* 
     if(probe!=null){
       try{
         probe.BeaconsUpdated -= OnBeacons;
@@ -83,8 +87,7 @@ public class ControlAppClient : MessageEmitter
         probe.Dispose();        
       }
     }
-
-    probe = new Probe("control-app");
+    */
     
     probe.Start();
     probe.BeaconsUpdated += OnBeacons;
