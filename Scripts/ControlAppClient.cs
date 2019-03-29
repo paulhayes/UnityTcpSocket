@@ -153,7 +153,6 @@ public class ControlAppClient : MessageEmitter
 
   private void ClientLoop(object obj)
   {
-    StartProbe();
     TcpClient client = null;
     NetworkStream stream = null;
     IPEndPoint address = null;
