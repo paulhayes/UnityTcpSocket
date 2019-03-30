@@ -23,7 +23,7 @@ namespace BeaconLib
 
         public event Action<IEnumerable<BeaconLocation>> BeaconsUpdated;
 
-        private readonly Thread thread;
+        private Thread thread;
         private readonly EventWaitHandle waitHandle = new EventWaitHandle(false, EventResetMode.AutoReset);
         private readonly UdpClient udp = new UdpClient();
         private IEnumerable<BeaconLocation> currentBeacons = Enumerable.Empty<BeaconLocation>();
@@ -35,7 +35,6 @@ namespace BeaconLib
             udp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
 
             BeaconType = beaconType;
-            thread = new Thread(BackgroundLoop) { IsBackground = true };
 
             udp.Client.Bind(new IPEndPoint(IPAddress.Any, 0));
 #if false
@@ -53,13 +52,18 @@ namespace BeaconLib
 
         public void Start()
         {
+          if(thread==null){
+            thread = new Thread(BackgroundLoop) { IsBackground = true };
+          }
+          running = true;
           if(!thread.IsAlive)
             thread.Start();
+            
         }
 
         private void ResponseReceived(IAsyncResult ar)
         {
-            UnityEngine.Debug.Log("ResponseReceived");
+            //UnityEngine.Debug.Log("ResponseReceived");
             var remote = new IPEndPoint(IPAddress.Any, 0);
             var bytes = udp.EndReceive(ar, ref remote);
 
@@ -105,6 +109,7 @@ namespace BeaconLib
 
         private void BroadcastProbe()
         {
+          //UnityEngine.Debug.Log("Sending BroadcastProbe");
             var probe = Beacon.Encode(BeaconType).ToArray();
             udp.Send(probe, probe.Length, new IPEndPoint(IPAddress.Broadcast, Beacon.DiscoveryPort));
         }
@@ -143,7 +148,11 @@ namespace BeaconLib
         {
             running = false;
             waitHandle.Set();
-            thread.Join();
+            if(thread!=null){
+              thread.Join();                    
+              thread = null;
+            }
+            
         }
 
         public void Dispose()
