@@ -88,8 +88,15 @@ public class ControlAppServer : MessageEmitter
 
   public void Stop()
   {
-    if(beacon != null)
-      beacon.Stop();
+    if(beacon != null){
+      try{
+        beacon.Stop();
+      }
+      finally {
+        beacon.Dispose();
+        beacon = null;
+      }
+    }
     
     running = false;
   }
