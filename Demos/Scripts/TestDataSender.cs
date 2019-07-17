@@ -15,7 +15,7 @@ public class TestDataSender : MonoBehaviour
         Message message = server.PopMessage();
         Debug.Log("server received message\n    "+message.ToString());
         Debug.Log(message.GetMessageType());
-        if(message.GetMessageType()==Message.Track){
+        if(message.GetMessageType()==DemoTrackMessage.type){
           Debug.Log( message.GetValue<int>(0) );
           Debug.Log( message.GetValue<int>(1) );
           Debug.Log( message.GetValue<float>(2) );
@@ -30,7 +30,7 @@ public class TestDataSender : MonoBehaviour
         Debug.Log("client received message\n    "+message.ToString());        
       }
 
-      client.Send(Message.Create("Track",GetHashCode(),UnityEngine.Random.Range(0,1000).ToString(),Time.time));     
+      client.Send(Message.Create("Track","demo_key"));     
 
     }
   }

@@ -25,8 +25,8 @@ public class DispatcherDemo : MonoBehaviour
       client.Init();
 
     
-    messageDispatcher.AddMessageHandler(new RequestMessage(), OnRequestMessage);
-    messageDispatcher.AddMessageHandler(new TrackMessage(TrackMessage.QuestionAnswer), OnTrackMessage);
+    //messageDispatcher.AddMessageHandler(new RequestMessage(), OnRequestMessage);
+    //messageDispatcher.AddMessageHandler(new TrackMessage(TrackMessage.QuestionAnswer), OnTrackMessage);
     messageDispatcher.UnrecognisedMessageEvent += OnUnrecognisedMessage;
   }
 
@@ -36,8 +36,10 @@ public class DispatcherDemo : MonoBehaviour
   {
     messageDispatcher.Update();
     if(toSend>=3){
-      client.Send((new RequestMessage("previous_workshop")).CreateMessage());
-      client.Send((new ResponseMessage("load_workshop")).CreateMessage());
+      //client.Send((new RequestMessage("previous_workshop")).CreateMessage());
+      //client.Send((new ResponseMessage("load_workshop")).CreateMessage());
+      
+      /* 
       client.Send((new TrackMessage(TrackMessage.QuestionAnswer){
         key = "question_answer",
         deviceId = "{device id}",
@@ -46,6 +48,7 @@ public class DispatcherDemo : MonoBehaviour
         questionAnswerIndex = 1,
         correct = true
       }).CreateMessage());
+      */
       toSend -= 3;
 
       }
@@ -53,15 +56,15 @@ public class DispatcherDemo : MonoBehaviour
 
   private void OnRequestMessage(IMessageData obj, object sender=null)
   {
-    var data = obj as RequestMessage;
-    Debug.LogFormat("Request message recieved key={0}",data.key);
+    //var data = obj as RequestMessage;
+    //Debug.LogFormat("Request message recieved key={0}",data.key);
     recieved++;
   }
 
   private void OnTrackMessage(IMessageData obj, object sender=null)
   {
-    var data = obj as TrackMessage;
-    Debug.LogFormat("Track message recieved key={0}",data.key);
+    //var data = obj as TrackMessage;
+    //Debug.LogFormat("Track message recieved key={0}",data.key);
     recieved++;
   }
 

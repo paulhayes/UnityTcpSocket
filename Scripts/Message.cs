@@ -10,8 +10,6 @@ namespace SocketCommunication {
 public class Message 
 {
   public const string None = "None";
-  public const string Track = "Track";      
-  public const string Status = "Status";
 
   byte[] messageData; 
 

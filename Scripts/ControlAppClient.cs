@@ -37,9 +37,12 @@ public class ControlAppClient : MessageEmitter
 
   volatile bool running;
 
+
+#if HierarchicalLogger
   public HierarchicalLogger discoveryLogs;
   public HierarchicalLogger sendLogs;
   public HierarchicalLogger receiveLogs;
+#endif
 
   public enum ClientState {
     Disconnected,
@@ -71,8 +74,11 @@ public class ControlAppClient : MessageEmitter
   void StartProbe()
   {
     State = ClientState.Discovering;
+    
+#if HierarchicalLogger
     if(discoveryLogs)
       discoveryLogs.Log(HierarchicalLogger.Info, "Starting Probe");
+#endif
 
     if(probe==null){
       probe = new Probe("control-app");
@@ -172,7 +178,9 @@ public class ControlAppClient : MessageEmitter
       
         try{
           while( sendMessageQueue.Count > 0 && stream.CanWrite ){
+#if HierarchicalLogger
             sendLogs.Log(HierarchicalLogger.Info,"sending message");
+#endif
             byte[] data;
             lock(sendQueueLock){
               data = sendMessageQueue.Dequeue().Data;
@@ -182,9 +190,11 @@ public class ControlAppClient : MessageEmitter
           }
         }
         catch(IOException e){
+#if HierarchicalLogger
           if(discoveryLogs){
             discoveryLogs.Log(HierarchicalLogger.Error,e.ToString());
           }
+#endif
           continue;
         }
 
@@ -192,14 +202,20 @@ public class ControlAppClient : MessageEmitter
       int len=0;
       try {
         if( stream.CanRead && stream.DataAvailable && 0!=(len=stream.Read(tmpReadBytes,0,tmpReadBytes.Length)) ){
+#if HierarchicalLogger
           receiveLogs.Log(HierarchicalLogger.Info, "reading message");
+#endif
           int index = 0;
+#if HierarchicalLogger
           receiveLogs.Log(HierarchicalLogger.Verbose, System.Text.Encoding.ASCII.GetString(tmpReadBytes,0,len));
+#endif
           Message.FromStream(tmpReadBytes, ref index, len, messages);
         }
       }
       catch(SocketException e){
+#if HierarchicalLogger
         receiveLogs.Log(HierarchicalLogger.Error,e.ToString());
+#endif
         continue;
       }
       
@@ -212,8 +228,10 @@ public class ControlAppClient : MessageEmitter
       
     }
     catch(Exception e){
+#if HierarchicalLogger
       if(receiveLogs)
           receiveLogs.Log(HierarchicalLogger.Error, e.ToString());
+#endif
     }
     try {
       if(client!=null && client.Connected){      
@@ -227,7 +245,9 @@ public class ControlAppClient : MessageEmitter
       if (client != null)
           client.Dispose();
     }
+#if HierarchicalLogger
     discoveryLogs.Log(HierarchicalLogger.Info,"Control App Client stopped");
+#endif
     clientThread = null;
   }
 
@@ -241,22 +261,29 @@ public class ControlAppClient : MessageEmitter
     }
 
     try{ 
+#if HierarchicalLogger
         discoveryLogs.Log(HierarchicalLogger.Info,"restarting probe");
+#endif
         StartProbe();
     }
     catch(ThreadStateException e2){
+#if HierarchicalLogger
       discoveryLogs.Log(HierarchicalLogger.Error,e2.ToString());
-      
+#endif
+
       //probe thread was already running?
     }
     
+#if HierarchicalLogger
     if(discoveryLogs)
       discoveryLogs.LogFormat(HierarchicalLogger.Info,"Waiting for server discovery");
+#endif
     waitForServerAddress.WaitOne();
     probe.Stop();
+#if HierarchicalLogger
     if(discoveryLogs)
       discoveryLogs.LogFormat(HierarchicalLogger.Info,"Connect to {0}",serverAddress);
-
+#endif
     
       
   }
@@ -272,8 +299,10 @@ public class ControlAppClient : MessageEmitter
 
     client = new TcpClient();
     try {
+#if HierarchicalLogger
       if(discoveryLogs)
         discoveryLogs.LogFormat(HierarchicalLogger.Info,"Attempting connect");
+#endif
       client.NoDelay = true;
       lock(addressFoundLock){
         address = serverAddress;
@@ -290,9 +319,11 @@ public class ControlAppClient : MessageEmitter
       State = ClientState.Disconnected;
 
       //connect failed
+#if HierarchicalLogger
       if(discoveryLogs){
         discoveryLogs.Log(HierarchicalLogger.Error,e.ToString());
       }
+#endif
       if(stream!=null){            
         stream.Dispose();
         stream = null;

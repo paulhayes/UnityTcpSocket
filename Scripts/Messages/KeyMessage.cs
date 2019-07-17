@@ -3,7 +3,7 @@ namespace SocketCommunication {
 public abstract class KeyMessage 
 {
   
-  readonly string type;
+  public readonly string type;
   public string key;
 
 

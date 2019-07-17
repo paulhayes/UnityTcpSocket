@@ -22,10 +22,12 @@ public class ControlAppServer : MessageEmitter
 
   public int sendRate = 100;
 
+
+#if HierarchicalLogger
   public HierarchicalLogger discoveryLogs;
   public HierarchicalLogger sendLogs;
   public HierarchicalLogger receiveLogs;
-
+#endif
   Beacon beacon;
 
   TcpListener server;
@@ -48,7 +50,10 @@ public class ControlAppServer : MessageEmitter
 
   public void Init()
   {
+    
+#if HierarchicalLogger
     discoveryLogs.LogFormat(HierarchicalLogger.Info,"Starting service discovery on port {0}",Port);
+#endif
     beacon = new Beacon("control-app", Port);
     beacon.BeaconData = "My Application Server on " + Dns.GetHostName();
     beacon.Start();
@@ -113,7 +118,7 @@ public class ControlAppServer : MessageEmitter
     try{
       server = new TcpListener(IPAddress.Any,Port);
       server.Start();
-      discoveryLogs.Log(HierarchicalLogger.Info,"Control App Server started");
+      LogInfo("Control App Server started");
       
       while(running){
         int wait = 1000 / sendRate;
@@ -138,10 +143,10 @@ public class ControlAppServer : MessageEmitter
           bool closed = false;
           if( elapsed.TotalSeconds>ClientTimeout){
               closed = true;
-              discoveryLogs.Log(HierarchicalLogger.Info, "client timeout, disconnected");
+              LogInfo("client timeout, disconnected");
           }
           if(!client.Connected){
-            discoveryLogs.Log(HierarchicalLogger.Info, "client disconnected");
+            LogInfo("client disconnected");
             closed = true;
           }
             
@@ -172,22 +177,22 @@ public class ControlAppServer : MessageEmitter
           //LogFormat("server checking for messages avail={0}",stream.DataAvailable);
           while(stream.DataAvailable && (length = stream.Read(tmpMessageBytes, 0, tmpMessageBytes.Length))!=0) {
             //create messages
-            receiveLogs.Log(HierarchicalLogger.Info,"server reading messages");
-            if(receiveLogs.WillLog(HierarchicalLogger.Verbose)){
-              receiveLogs.LogFormat(HierarchicalLogger.Verbose,"Message \"{0}\"",Encoding.UTF8.GetString(tmpMessageBytes,0,length) );
+            LogInfo("server reading messages");
+            if( WillLogVerbose() ){
+              LogVerbose("Message \"{0}\"",Encoding.UTF8.GetString(tmpMessageBytes,0,length) );
             }
             lock(queueLock){
               int index = 0;            
               int messageCount = Message.FromStream(tmpMessageBytes, ref index, length, messages, client);
               if(messageCount>0)
                 lastClientMessageTime[i] = System.DateTime.UtcNow;
-              receiveLogs.LogFormat(HierarchicalLogger.Info, "server read {0} messages",messageCount);
+              LogInfo("server read {0} messages",messageCount);
             }
           }
         }
 
         while( sendMessageQueue.Count > 0 ){
-          sendLogs.Log(HierarchicalLogger.Info,"sending message to clients");
+          LogInfo("sending message to clients");
           byte[] data;
           object target = null;
           lock(sendQueueLock){
@@ -199,7 +204,10 @@ public class ControlAppServer : MessageEmitter
             if(target!=null && target!=clients[i])
               continue;
 
+
+#if HierarchicalLogger
             sendLogs.LogFormat(HierarchicalLogger.Verbose, "sending to {0} {1}",i,Encoding.UTF8.GetString(data));
+#endif
             var client = clients[i];
             var stream = client.GetStream();  
             
@@ -209,7 +217,10 @@ public class ControlAppServer : MessageEmitter
                 stream.Write( data, 0, data.Length );                  
             }
             catch(System.IO.IOException e){
+
+#if HierarchicalLogger
               sendLogs.Log(HierarchicalLogger.Error, e);         
+#endif
             }
           }
         }
@@ -218,7 +229,9 @@ public class ControlAppServer : MessageEmitter
       }
     } 
     catch(System.Exception e){
+#if HierarchicalLogger
       discoveryLogs.Log(HierarchicalLogger.Error, e); 
+#endif
     }
 
     for(int i=0;i<clients.Count;i++){
@@ -232,8 +245,82 @@ public class ControlAppServer : MessageEmitter
     clients.Clear();
     lastClientMessageTime.Clear();
     server.Stop();
-    discoveryLogs.Log(HierarchicalLogger.Info,"Control App Server stopped");
     
+
+    LogInfo("Control App Server stopped");
+
+  }
+
+  void LogInfo(string msg, params object[] args)
+  {
+    if(args!=null && args.Length>0){
+      msg = string.Format(msg,args);
+    }
+    #if HierarchicalLogger
+      discoveryLogs.Log(HierarchicalLogger.Info,msg);
+    #elif LogLevelInfo
+      Debug.Log(msg);
+    #endif
+
+  }
+
+  void LogVerbose(string msg, params object[] args)
+  {
+    if(args!=null && args.Length>0){
+      msg = string.Format(msg,args);
+    }
+    #if HierarchicalLogger
+      discoveryLogs.Log(HierarchicalLogger.Verbose,msg);
+    #elif LogLevelVerbose
+      Debug.Log(msg);
+    #endif
+  }
+
+  void LogError(string msg, params object[] args)
+  {
+    if(args!=null && args.Length>0){
+      msg = string.Format(msg,args);
+    }
+    #if HierarchicalLogger
+      discoveryLogs.Log(HierarchicalLogger.Error,msg);
+    #else
+      Debug.LogError(msg);
+    #endif
+  }
+
+  void LogWarning(string msg, params object[] args)
+  {
+    if(args!=null && args.Length>0){
+      msg = string.Format(msg,args);
+    }
+    #if HierarchicalLogger
+      discoveryLogs.Log(HierarchicalLogger.Warning,msg);
+    #else
+      Debug.LogWarning(msg);
+    #endif
+  }
+
+  bool WillLogVerbose()
+  {
+    #if HierarchicalLogger
+      return discoveryLogs.WillLog(HierarchicalLogger.Verbose);
+    #elif LogLevelVerbose
+      return true;
+    #else
+      return false;
+    #endif 
+  }
+
+  bool WillLogInfo()
+  {
+    #if HierarchicalLogger
+      return discoveryLogs.WillLog(HierarchicalLogger.Info);
+    #elif LogLevelInfo
+      return true;
+
+    #else
+      return false;
+    #endif  
   }
     
 }
