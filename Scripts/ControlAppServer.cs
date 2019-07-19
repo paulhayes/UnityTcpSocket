@@ -112,7 +112,7 @@ public class ControlAppServer : MessageEmitter
     serverThread.Start();
   }
 
-  public void ListenLoop()
+  private void ListenLoop()
   {
     
     try{
@@ -128,7 +128,8 @@ public class ControlAppServer : MessageEmitter
           var client = server.AcceptTcpClient();        
           clients.Add( client );  
           lastClientMessageTime.Add( System.DateTime.UtcNow );
-          ClientConnectedEvent(client);    
+          if( ClientConnectedEvent != null )
+            ClientConnectedEvent(client);    
 
           if(clients.Count>=MaxClients){
             server.Stop();
@@ -152,7 +153,8 @@ public class ControlAppServer : MessageEmitter
             
           if(closed){
             try {        
-              ClientDisconnectEvent(client);
+              if(ClientDisconnectEvent != null)
+                ClientDisconnectEvent(client);
               client.Close();      
             } 
             finally {    
@@ -173,7 +175,7 @@ public class ControlAppServer : MessageEmitter
           var client = clients[i];
           var stream = client.GetStream();    
           int length=0;
-
+          //LogInfo("checling for messages");
           //LogFormat("server checking for messages avail={0}",stream.DataAvailable);
           while(stream.DataAvailable && (length = stream.Read(tmpMessageBytes, 0, tmpMessageBytes.Length))!=0) {
             //create messages
@@ -231,6 +233,8 @@ public class ControlAppServer : MessageEmitter
     catch(System.Exception e){
 #if HierarchicalLogger
       discoveryLogs.Log(HierarchicalLogger.Error, e); 
+#else
+      Debug.Log(e.ToString());
 #endif
     }
 
