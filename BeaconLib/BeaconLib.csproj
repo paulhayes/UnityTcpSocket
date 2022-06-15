@@ -17,6 +17,6 @@
     <PackageId>rix0rrr.BeaconLib</PackageId>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="NuGet.CommandLine" Version="4.4.1" />
+    <PackageReference Include="NuGet.CommandLine" Version="4.9.5" />
   </ItemGroup>
 </Project>
